@@ -1,71 +1,86 @@
+from __future__ import annotations
 
-import math
-from heapq import nsmallest
-import math
 import array
+import math
 import random
+from heapq import nsmallest
+from typing import TypedDict
 
 import matplotlib
-from matplotlib import colors
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.linalg as npla
-from numpy import ones,vstack
-from numpy.linalg import lstsq
-import matplotlib.pyplot as plt
+import shapely.affinity as saf  # type: ignore
+import shapely.geometry.linestring as sgls  # type: ignore
+import shapely.geometry.point as spt  # type: ignore
+import shapely.geometry.polygon as sgp  # type: ignore
+from matplotlib import colors
 from matplotlib.collections import PatchCollection
-# %matplotlib inline
-
-import pyvisgraph as pvg
-import shapely.geometry.polygon as sgp
-import shapely.geometry.linestring as sgls
-import shapely.geometry.point as spt
-import shapely.affinity as saf
+from numpy import ones, vstack
+from numpy.linalg import lstsq
 from shapely import geometry
 
-
+import pyvisgraph as pvg
 from Point import Point
-from Rectangle import Rectangle
+
+
+class ObjectListObject(TypedDict):
+    id: int
+    point: Point
+    furniture: Furniture
+
 
 class baseParent:
     """This is the abstract parent class and contains all methods common between other object classes"""
 
-    def __init__(self, bottom_left, top_right, name):
+    def __init__(
+        self,
+        bottom_left: Point,
+        top_right: Point,
+        name: str,
+        object_importance: list[int],
+    ):
         self.bottom_left = bottom_left
         self.top_right = top_right
         self.name = name
+        self.object_importance = object_importance
         self.rotation = 0
-        self.redAreas = []
+        self.redAreas: list[ObjectListObject] = []
 
-    def intersects(self, other):
-        """Description : 
+    def intersects(self, other: Rectangle):
+        """Description :
         Checks if two Rectangle objects insects or overlaps
 
-        Parameters : 
+        Parameters :
         Other(rectangle) : Rectangle object to be compared to current rectangle object
 
         Returns:
         Returns True if intersection occurs else returns false
 
         """
-        return not (self.top_right.x < other.bottom_left.x or 
-                    self.bottom_left.x > other.top_right.x or 
-                    self.top_right.y < other.bottom_left.y or 
-                    self.bottom_left.y > other.top_right.y)
+        return not (
+            self.top_right.x < other.bottom_left.x
+            or self.bottom_left.x > other.top_right.x
+            or self.top_right.y < other.bottom_left.y
+            or self.bottom_left.y > other.top_right.y
+        )
 
     def get_new_point(self):
         """Desription:
         Generate a random point
 
-        Parameters : 
+        Parameters :
         None
 
         Returns:
         New point object created
 
         """
-        return Point(random.randint(0, self.top_right.x), random.randint(0, self.top_right.y))
+        return Point(
+            random.randint(0, self.top_right.x), random.randint(0, self.top_right.y)
+        )
 
-    def rotate(self, idx):
+    def rotate(self, idx: int):
         """Description:
         Rotation around the center axis which takes an index and rotates object on that index
 
@@ -78,26 +93,28 @@ class baseParent:
 
         """
 
-
         centr_point = self.center(idx)
 
-        center_point_x = self.redAreas[idx]["furniture"].top_right.x/2
-        center_point_y = self.redAreas[idx]["furniture"].top_right.y/2
+        center_point_x = self.redAreas[idx]["furniture"].top_right.x / 2
+        center_point_y = self.redAreas[idx]["furniture"].top_right.y / 2
 
         new_point_x = centr_point.x - center_point_y
         new_point_y = centr_point.y - center_point_x
 
         temp = Point(new_point_x, new_point_y)
-        if (self.can_fit(temp, self.redAreas[idx]["furniture"], idx)):
+        if self.can_fit(temp, self.redAreas[idx]["furniture"], idx):
             self.redAreas[idx]["point"].x = new_point_x
             self.redAreas[idx]["point"].y = new_point_y
 
-            self.redAreas[idx]["furniture"].top_right.x, self.redAreas[idx]["furniture"].top_right.y = self.redAreas[
-                idx]["furniture"].top_right.y, self.redAreas[idx]["furniture"].top_right.x
-
+            (
+                self.redAreas[idx]["furniture"].top_right.x,
+                self.redAreas[idx]["furniture"].top_right.y,
+            ) = (
+                self.redAreas[idx]["furniture"].top_right.y,
+                self.redAreas[idx]["furniture"].top_right.x,
+            )
 
             self.rotation = (self.rotation + 1) % 4
-
 
             return True
 
@@ -105,7 +122,7 @@ class baseParent:
 
             return False
 
-    def can_fit(self, point, furniture, idx):
+    def can_fit(self, point: Point, furniture: Furniture, idx: int):
         """Desciption:
         Validate that if the new Furniture object can fitin the room without overlapping
         any other furniture object. Rectangle class is used in this function
@@ -120,14 +137,30 @@ class baseParent:
 
 
         """
-#         print(point.x + furniture.top_right.x , self.top_right.x , point.y+furniture.top_right.y , self.top_right.y)
-        if point.x + furniture.top_right.x > self.top_right.x or point.y+furniture.top_right.y > self.top_right.y:
+        #         print(point.x + furniture.top_right.x , self.top_right.x , point.y+furniture.top_right.y , self.top_right.y)
+        if (
+            point.x + furniture.top_right.x > self.top_right.x
+            or point.y + furniture.top_right.y > self.top_right.y
+        ):
             return False
         for item in self.redAreas:
             if item["id"] is not idx:
-                temp = Rectangle(item["point"], Point(
-                    item["point"].x+item["furniture"].top_right.x, item["point"].y+item["furniture"].top_right.y))
-                if temp.intersects(Rectangle(point, Point(point.x+furniture.top_right.x, point.y+furniture.top_right.y))):
+                temp = Rectangle(
+                    item["point"],
+                    Point(
+                        item["point"].x + item["furniture"].top_right.x,
+                        item["point"].y + item["furniture"].top_right.y,
+                    ),
+                )
+                if temp.intersects(
+                    Rectangle(
+                        point,
+                        Point(
+                            point.x + furniture.top_right.x,
+                            point.y + furniture.top_right.y,
+                        ),
+                    )
+                ):
                     return False
         return True
 
@@ -147,11 +180,13 @@ class baseParent:
 
 
         """
-        self.redAreas.append({
-            "id": idx,
-            "point": point,
-            "furniture": furniture,
-        })
+        self.redAreas.append(
+            {
+                "id": idx,
+                "point": point,
+                "furniture": furniture,
+            }
+        )
 
     def fit(self, furniture):
         """Description:
@@ -174,7 +209,7 @@ class baseParent:
             if iterations > 0:
                 self.add_redArea(point_to_fit, item, idx)
 
-    def center(self, i):
+    def center(self, i: int):
         """Description:
         calculates the center of furniture object
 
@@ -186,13 +221,15 @@ class baseParent:
         Center point of given object
 
         """
-        temp1 = self.redAreas[i]["point"].x + \
-            self.redAreas[i]["furniture"].top_right.x/2
-        temp2 = self.redAreas[i]["point"].y + \
-            self.redAreas[i]["furniture"].top_right.y/2
+        temp1 = (
+            self.redAreas[i]["point"].x + self.redAreas[i]["furniture"].top_right.x / 2
+        )
+        temp2 = (
+            self.redAreas[i]["point"].y + self.redAreas[i]["furniture"].top_right.y / 2
+        )
         return Point(temp1, temp2)
 
-    def distance(self, p1, p2):
+    def distance(self, p1: Point, p2: Point):
         """Description:
         Calculates the distance between two points
 
@@ -205,9 +242,9 @@ class baseParent:
         Distance between starting and ending point
 
         """
-        return math.sqrt(((p1.x-p2.x)**2)+((p1.y-p2.y)**2))
+        return math.sqrt(((p1.x - p2.x) ** 2) + ((p1.y - p2.y) ** 2))
 
-    def find_closest_wall(self, itemx):
+    def find_closest_wall(self, itemx: Furniture):
         """Description
         Find the closest wall and returns the appropriate integer
         1 for add x, 2 for add y, 3 for subtract x , 4 for subtract y
@@ -230,39 +267,36 @@ class baseParent:
                 x2 = x1 + item["furniture"].top_right.x
                 y2 = y1 + item["furniture"].top_right.y
 
-                min_dist = min(
-                    [x1, y1, self.top_right.x-x2, self.top_right.y-y2])
+                min_dist = min([x1, y1, self.top_right.x - x2, self.top_right.y - y2])
                 if min_dist == x1:
                     return 3
                 elif min_dist == y1:
                     return 4
-                elif min_dist == self.top_right.x-x2:
+                elif min_dist == self.top_right.x - x2:
                     return 1
-                elif min_dist == self.top_right.y-y2:
+                elif min_dist == self.top_right.y - y2:
                     return 2
         return -1
 
-    def find_closest_object(self, itemx):
+    def find_closest_object(self, itemx: Furniture):
         """Description:
         Finds the closest object and return s the index of that object and
         the index of the object passed to it in Room redAreas
 
-        Parameters: 
+        Parameters:
         itemx(Furniture) = Furniture object whose closest object is to be found
 
         Returns:
         Index of current object
-        Index of closest object found 
+        Index of closest object found
 
         """
         distances = []
         temp = Point(0, 0)
         for item in self.redAreas:
             if item["furniture"] is itemx:
-                temp.x = int(item["point"].x +
-                             item["furniture"].top_right.x / 2)
-                temp.y = int(item["point"].y +
-                             item["furniture"].top_right.y / 2)
+                temp.x = int(item["point"].x + item["furniture"].top_right.x / 2)
+                temp.y = int(item["point"].y + item["furniture"].top_right.y / 2)
 
         for item in self.redAreas:
             x1 = int(item["point"].x + item["furniture"].top_right.x / 2)
@@ -271,7 +305,10 @@ class baseParent:
             distances.append(self.distance(Point(x1, y1), temp))
 
         if distances:
-            return (distances.index(nsmallest(2, distances)[-1]), distances.index(min(distances)))
+            return (
+                distances.index(nsmallest(2, distances)[-1]),
+                distances.index(min(distances)),
+            )
         else:
             return (-1, -1)
 
@@ -287,45 +324,44 @@ class baseParent:
         Returns:
         None"""
 
-#         all_objects_having_back = ['Chair']
+    #         all_objects_having_back = ['Chair']
 
-#         for item in self.redAreas:
-#             if item["furniture"] is itemx:
-#                 can_snap = True
+    #         for item in self.redAreas:
+    #             if item["furniture"] is itemx:
+    #                 can_snap = True
 
-#                 if item["furniture"].additional_attr:
-#                     if 'back' in item["furniture"].additional_attr['snap_direct']:
-#                         if not((self.rotation + direction)%4  == 2):  
-#                             can_snap = False
+    #                 if item["furniture"].additional_attr:
+    #                     if 'back' in item["furniture"].additional_attr['snap_direct']:
+    #                         if not((self.rotation + direction)%4  == 2):
+    #                             can_snap = False
 
+    #                 if direction == 1 and can_snap:
+    #                     if self.can_fit(Point(self.top_right.x - item["point"].x - 1, item["point"].y), item["furniture"], item["id"]):
+    #                         item["point"].x = self.top_right.x - item["point"].x-1
+    #                         print("snapped")
+    #                     else:
+    #                         print("cannot fit")
+    #                 elif direction == 2 and can_snap:
+    #                     if self.can_fit(Point(item["point"].x, self.top_right.y - item["point"].y - 1), item["furniture"], item["id"]):
+    #                         item["point"].y = self.top_right.y - \
+    #                             item["point"].y - 1
+    #                         print("snapped")
+    #                     else:
+    #                         print("cannot fit")
+    #                 elif direction == 3 and can_snap:
+    #                     if self.can_fit(Point(1, item["point"].y), item["furniture"], item["id"]):
+    #                         item["point"].x = 1
+    #                         print("snapped")
+    #                     else:
+    #                         print("cannot fit")
+    #                 elif direction == 4 and can_snap:
+    #                     if self.can_fit(Point(item["point"].x, 1), item["furniture"], item["id"]):
+    #                         item["point"].y = 1
+    #                         print("snapped")
+    #                     else:
+    #                         print("cannot fit")
 
-#                 if direction == 1 and can_snap:
-#                     if self.can_fit(Point(self.top_right.x - item["point"].x - 1, item["point"].y), item["furniture"], item["id"]):
-#                         item["point"].x = self.top_right.x - item["point"].x-1
-#                         print("snapped")
-#                     else:
-#                         print("cannot fit")
-#                 elif direction == 2 and can_snap:
-#                     if self.can_fit(Point(item["point"].x, self.top_right.y - item["point"].y - 1), item["furniture"], item["id"]):
-#                         item["point"].y = self.top_right.y - \
-#                             item["point"].y - 1
-#                         print("snapped")
-#                     else:
-#                         print("cannot fit")
-#                 elif direction == 3 and can_snap:
-#                     if self.can_fit(Point(1, item["point"].y), item["furniture"], item["id"]):
-#                         item["point"].x = 1
-#                         print("snapped")
-#                     else:
-#                         print("cannot fit")
-#                 elif direction == 4 and can_snap:
-#                     if self.can_fit(Point(item["point"].x, 1), item["furniture"], item["id"]):
-#                         item["point"].y = 1
-#                         print("snapped")
-#                     else:
-#                         print("cannot fit")
-
-    def move_object(self, itemx, index):
+    def move_object(self, itemx: Furniture, index: tuple[int, int]):
         """Description:
         Snap the Furniture object to the closest object
 
@@ -339,27 +375,43 @@ class baseParent:
 
         """
         point_list = []
-        temp_x = self.redAreas[index[1]]["point"].x + \
-            self.redAreas[index[1]]["furniture"].top_right.x + 1
+        temp_x = (
+            self.redAreas[index[1]]["point"].x
+            + self.redAreas[index[1]]["furniture"].top_right.x
+            + 1
+        )
         temp_y = self.redAreas[index[1]]["point"].y
         point_list.append(Point(temp_x, temp_y))
         temp_x = self.redAreas[index[1]]["point"].x
-        temp_y = self.redAreas[index[1]]["point"].y + \
-            self.redAreas[index[1]]["furniture"].top_right.y + 1
+        temp_y = (
+            self.redAreas[index[1]]["point"].y
+            + self.redAreas[index[1]]["furniture"].top_right.y
+            + 1
+        )
         point_list.append(Point(temp_x, temp_y))
         temp_x = self.redAreas[index[1]]["point"].x
-        temp_y = self.redAreas[index[1]]["point"].y - \
-            self.redAreas[index[0]]["furniture"].top_right.y - 1
+        temp_y = (
+            self.redAreas[index[1]]["point"].y
+            - self.redAreas[index[0]]["furniture"].top_right.y
+            - 1
+        )
         point_list.append(Point(temp_x, temp_y))
-        temp_x = self.redAreas[index[1]]["point"].x - \
-            self.redAreas[index[0]]["furniture"].top_right.x - 1
+        temp_x = (
+            self.redAreas[index[1]]["point"].x
+            - self.redAreas[index[0]]["furniture"].top_right.x
+            - 1
+        )
         temp_y = self.redAreas[index[1]]["point"].y
         point_list.append(Point(temp_x, temp_y))
 
-        temp_x = self.redAreas[index[0]]["point"].x + \
-            self.redAreas[index[0]]["furniture"].top_right.x/2
-        temp_y = self.redAreas[index[0]]["point"].y + \
-            self.redAreas[index[0]]["furniture"].top_right.y/2
+        temp_x = (
+            self.redAreas[index[0]]["point"].x
+            + self.redAreas[index[0]]["furniture"].top_right.x / 2
+        )
+        temp_y = (
+            self.redAreas[index[0]]["point"].y
+            + self.redAreas[index[0]]["furniture"].top_right.y / 2
+        )
         temp_point = Point(temp_x, temp_y)
 
         distances = []
@@ -367,12 +419,16 @@ class baseParent:
             distances.append(self.distance(temp_point, item))
 
         new_point = point_list[distances.index(min(distances))]
-        if self.can_fit(new_point, self.redAreas[index[0]]["furniture"], self.redAreas[index[0]]["id"]):
+        if self.can_fit(
+            new_point,
+            self.redAreas[index[0]]["furniture"],
+            self.redAreas[index[0]]["id"],
+        ):
             self.redAreas[index[0]]["point"] = new_point
             return True
         return False
 
-    def align_it(self, itemx, direction):
+    def align_it(self, itemx: Furniture, direction: int):
         """Description:
         Align the Furniture object to the closest wall
 
@@ -389,27 +445,31 @@ class baseParent:
         for item in self.redAreas:
             if item["furniture"] is itemx:
                 if direction == 1:
-                    new_y = self.top_right.y/2 - \
-                        item["furniture"].top_right.y/2
-                    if self.can_fit(Point(item["point"].x, new_y), item["furniture"], item["id"]):
+                    new_y = self.top_right.y / 2 - item["furniture"].top_right.y / 2
+                    if self.can_fit(
+                        Point(item["point"].x, new_y), item["furniture"], item["id"]
+                    ):
                         item["point"].y = new_y
                         return True
                 elif direction == 2:
-                    new_x = self.top_right.x/2 - \
-                        item["furniture"].top_right.x/2
-                    if self.can_fit(Point(new_x - item["point"].y), item["furniture"], item["id"]):
+                    new_x = self.top_right.x / 2 - item["furniture"].top_right.x / 2
+                    if self.can_fit(
+                        Point(new_x - item["point"].y), item["furniture"], item["id"]
+                    ):
                         item["point"].x = new_x
                         return True
                 elif direction == 3:
-                    new_y = self.top_right.y/2 - \
-                        item["furniture"].top_right.y/2
-                    if self.can_fit(Point(item["point"].x, new_y), item["furniture"], item["id"]):
+                    new_y = self.top_right.y / 2 - item["furniture"].top_right.y / 2
+                    if self.can_fit(
+                        Point(item["point"].x, new_y), item["furniture"], item["id"]
+                    ):
                         item["point"].y = new_y
                         return True
                 elif direction == 4:
-                    new_x = self.top_right.x/2 - \
-                        item["furniture"].top_right.x/2
-                    if self.can_fit(Point(new_x, item["point"].y), item["furniture"], item["id"]):
+                    new_x = self.top_right.x / 2 - item["furniture"].top_right.x / 2
+                    if self.can_fit(
+                        Point(new_x, item["point"].y), item["furniture"], item["id"]
+                    ):
                         item["point"].x = new_x
                         return True
                 else:
@@ -417,7 +477,7 @@ class baseParent:
 
             return False
 
-    def align_it_object(self, itemx, index):
+    def align_it_object(self, itemx: Furniture, index: tuple[int, int]):
         """Description:
         Align the Furniture object to the closest object
 
@@ -431,57 +491,63 @@ class baseParent:
 
         """
         item = self.redAreas[index[0]]
-        new_y = item["point"].y + \
-            item["furniture"].top_right.y/2 - itemx.top_right.y/2
+        new_y = (
+            item["point"].y + item["furniture"].top_right.y / 2 - itemx.top_right.y / 2
+        )
         if self.can_fit(Point(item["point"].x, new_y), item["furniture"], item["id"]):
             self.redAreas[index[1]]["point"].y = new_y
             return True
         else:
-            new_x = item["point"].x + \
-                item["furniture"].top_right.x/2 - itemx.top_right.x/2
-            if self.can_fit(Point(new_x - item["point"].y), item["furniture"], item["id"]):
+            new_x = (
+                item["point"].x
+                + item["furniture"].top_right.x / 2
+                - itemx.top_right.x / 2
+            )
+            if self.can_fit(
+                Point(new_x - item["point"].y), item["furniture"], item["id"]
+            ):
                 self.redAreas[index[1]]["point"].x = new_x
                 return True
         return False
 
-    def snap(self, item, thing):
+    def snap(self, item: Furniture, thing: str):
         """Description:
         Control Flow of snap function
 
         Parameters:
         item(Furniture) = Furniture object that is to be moved
-        thing = Wall or object 
+        thing = Wall or object
 
         Return:
         True if moved else false
 
         """
         if thing == "wall":
-            return(self.move(item, self.find_closest_wall(item)))
+            return self.move(item, self.find_closest_wall(item))
         elif thing == "object":
-            return(self.move_object(item, self.find_closest_object(item)))
+            return self.move_object(item, self.find_closest_object(item))
         else:
             return False
 
-    def align(self, item, thing):
+    def align(self, item: Furniture, thing: str):
         """Description:
         Control Flow of align function
 
         Parameters:
         itemx(Furniture) = Furniture object that is to be moved
-        thing = Wall or object 
+        thing = Wall or object
 
         Return:
         True if aligned else false
         """
         if thing == "wall":
-            return (self.align_it(item, self.find_closest_wall(item)))
+            return self.align_it(item, self.find_closest_wall(item))
         elif thing == "object":
-            return(self.align_it_object(item, self.find_closest_object(item)))
+            return self.align_it_object(item, self.find_closest_object(item))
         else:
             return False
 
-    def pos_change(self ,item_index, distance ):
+    def pos_change(self, item_index: int, distance: int):
         """Description:
         Changes the position of the object according to distance defined
 
@@ -496,70 +562,85 @@ class baseParent:
 
         all_points = np.random.normal(0, distance, 100)
 
-        nmbr = random.randint(0,99)
+        nmbr = random.randint(0, 99)
         temp_x = self.redAreas[item_index]["point"].x + all_points[nmbr]
         temp_y = self.redAreas[item_index]["point"].y + all_points[nmbr]
 
-        new_pos = Point( temp_x, temp_y) 
-        if (self.can_fit(new_pos, self.redAreas[item_index]["furniture"], item_index)):
+        new_pos = Point(temp_x, temp_y)
+        if self.can_fit(new_pos, self.redAreas[item_index]["furniture"], item_index):
 
             self.redAreas[item_index]["point"].x = temp_x
             self.redAreas[item_index]["point"].y = temp_y
 
-    def midpoint(self ,p1, p2):
+    def midpoint(self, p1, p2):
         """Returns list of two midpoints"""
-        return [(p1.x+p2.x)/2, (p1.y+p2.y)/2]
+        return [(p1.x + p2.x) / 2, (p1.y + p2.y) / 2]
 
-    def cost_function(self , objects_list ,roomPoints ,dR_room):
+    def cost_function(
+        self,
+        objects_list: list[ObjectListObject],
+        roomPoints: list[spt.Point],
+        dR_room: float,
+    ):
 
-
-
-        clearance_proportion=self.clearnace_transformation(objects_list,roomPoints)
+        clearance_proportion = self.clearnace_transformation(objects_list, roomPoints)
 
         circulation = self.circulation_transformation(objects_list)
-        groupRelationship_rythm_goldSec = self.group_relationship_transformation(objects_list,roomPoints,
-                                                                               dR_room )
-        alignment = self.Aligment_transformation(objects_list , dR_room)
+        groupRelationship_rythm_goldSec = self.group_relationship_transformation(
+            objects_list, roomPoints, dR_room
+        )
+        alignment = self.Aligment_transformation(objects_list, dR_room)
 
-        actual_amounts = {'Table':2,'Chair':2,'Bed':2}
-        desired_amounts = {'Table':1,'Chair':4,'Bed':1}
-        Functionality = self.calcFunctionality(self.object_importance,actual_amounts
-                                               ,desired_amounts)*3
-        result = clearance_proportion + circulation + groupRelationship_rythm_goldSec + Functionality + alignment
-        return(result)
+        actual_amounts = {"Table": 2, "Chair": 2, "Bed": 2}
+        desired_amounts = {"Table": 1, "Chair": 4, "Bed": 1}
+        Functionality = (
+            self.calcFunctionality(
+                self.object_importance, actual_amounts, desired_amounts
+            )
+            * 3
+        )
+        result = (
+            clearance_proportion
+            + circulation
+            + groupRelationship_rythm_goldSec
+            + Functionality
+            + alignment
+        )
+        return result
 
-    def clearnace_transformation (self , objects_list,roomPoints):
+    def clearnace_transformation(
+        self, objects_list: list[ObjectListObject], roomPoints: list[spt.Point]
+    ):
         """
         Transformation function for clearance and proportion
-                """
-        all_objects_points = []
+        """
+        all_objects_points: list[list[spt.Point]] = []
 
         for item in objects_list:
             current_object_points = []
-            x1 =int(item["point"].x)
+            x1 = int(item["point"].x)
             y1 = int(item["point"].y)
             x2 = x1 + int(item["furniture"].top_right.x)
             y2 = y1 + int(item["furniture"].top_right.y)
-            p1 = geometry.Point(x1,y1)
-            p2 = geometry.Point(x2,y1)
-            p3 = geometry.Point(x2,y2)
-            p4 = geometry.Point(x1,y2)
-            current_object_points = [p1,p2,p3,p4]
+            p1 = geometry.Point(x1, y1)
+            p2 = geometry.Point(x2, y1)
+            p3 = geometry.Point(x2, y2)
+            p4 = geometry.Point(x1, y2)
+            current_object_points = [p1, p2, p3, p4]
             all_objects_points.append(current_object_points)
 
         clearance = self.calcLayoutClearance(all_objects_points)
 
-#         roomPoints= [geometry.Point(0,0),geometry.Point(100,0)
-#                      ,geometry.Point(100,100),geometry.Point(0,100)]
+        #         roomPoints= [geometry.Point(0,0),geometry.Point(100,0)
+        #                      ,geometry.Point(100,100),geometry.Point(0,100)]
 
-        proportion = self.calcProportion(all_objects_points,roomPoints)*2.5
+        proportion = self.calcProportion(all_objects_points, roomPoints) * 2.5
 
-        return (clearance + proportion)
+        return clearance + proportion
 
-    def circulation_transformation (self ,objects_list):
-
+    def circulation_transformation(self, objects_list: list[ObjectListObject]):
         """
-        Transforms 
+        Transforms
         """
 
         all_objects_points = []
@@ -567,89 +648,101 @@ class baseParent:
         tp_list = []
         for item in objects_list:
             current_object_points = []
-            x1 =int(item["point"].x)
+            x1 = int(item["point"].x)
             y1 = int(item["point"].y)
             x2 = x1 + int(item["furniture"].top_right.x)
             y2 = y1 + int(item["furniture"].top_right.y)
-            p1 = geometry.Point(x1,y1)
-            p2 = geometry.Point(x2,y1)
-            p3 = geometry.Point(x2,y2)
-            p4 = geometry.Point(x1,y2)
+            p1 = geometry.Point(x1, y1)
+            p2 = geometry.Point(x2, y1)
+            p3 = geometry.Point(x2, y2)
+            p4 = geometry.Point(x1, y2)
 
-            sp = geometry.Point(0,0)
+            sp = geometry.Point(0, 0)
             tp = p1
 
-            current_object_points = [p1,p2,p3,p4]
+            current_object_points = [p1, p2, p3, p4]
             all_objects_points.append(current_object_points)
             sp_list.append(sp)
             tp_list.append(tp)
-        cost = self.calcLayoutCirculation(all_objects_points,sp_list,tp_list)*1.1
-        return(cost)
+        cost = self.calcLayoutCirculation(all_objects_points, sp_list, tp_list) * 1.1
+        return cost
 
-    def group_relationship_transformation(self ,objects_list ,roomPoints , dR_room):
+    def group_relationship_transformation(
+        self,
+        objects_list: list[ObjectListObject],
+        roomPoints: list[spt.Point],
+        dR_room: float,
+    ):
         """
-        Transformation function for group_relationship and rythm and GoldenSec 
-                """
-        all_items_center = []
-        furniture_type = []
-        for idx,item in enumerate(objects_list):
-            centr_point = baseParent.center(self , idx)
-            all_items_center.append(geometry.Point(centr_point.x,centr_point.y))
+        Transformation function for group_relationship and rythm and GoldenSec
+        """
+        all_items_center: list[spt.Point] = []
+        furniture_type: list[int] = []
+        for idx, item in enumerate(objects_list):
+            centr_point = baseParent.center(self, idx)
+            all_items_center.append(geometry.Point(centr_point.x, centr_point.y))
 
             furniture_type.append(item["furniture"].room_type)
 
-#         roomPoints= [geometry.Point(0,0),geometry.Point(100,0)
-#                      ,geometry.Point(100,100),geometry.Point(0,100)]
+        #         roomPoints= [geometry.Point(0,0),geometry.Point(100,0)
+        #                      ,geometry.Point(100,100),geometry.Point(0,100)]
 
-#         dR_room = np.sqrt(100**2+100**2)  #Diagonal Size of the room
-        group_Relation = self.calcGroupRelation(all_items_center,furniture_type,dR_room)
+        #         dR_room = np.sqrt(100**2+100**2)  #Diagonal Size of the room
+        group_Relation = self.calcGroupRelation(
+            all_items_center, furniture_type, dR_room
+        )
         objectDistribution = self.calcObjDistrib(all_items_center)
-        goldenSection = self.calcGoldenSec(all_items_center,roomPoints,dR_room)*0.5
+        goldenSection = self.calcGoldenSec(all_items_center, roomPoints, dR_room) * 0.5
 
-        return(group_Relation + objectDistribution + goldenSection)
+        return group_Relation + objectDistribution + goldenSection
 
-    def Aligment_transformation(self , objects_list , dR_room):
+    def Aligment_transformation(
+        self, objects_list: list[ObjectListObject], dR_room: float
+    ):
 
         all_objects_front_center_points = []
-        all_objects_back_center_points = []
+        all_objects_back_center_points: list[list[float]] = []
         for item in objects_list:
-            x1 =int(item["point"].x)
+            x1 = int(item["point"].x)
             y1 = int(item["point"].y)
             x2 = x1 + int(item["furniture"].top_right.x)
             y2 = y1 + int(item["furniture"].top_right.y)
-            if (self.rotation == 0):
-                front = self.midpoint(Point(x1,y1),Point(x2,y1))
-                back = self.midpoint(Point(x1,y2),Point(x2,y2))
-            elif (self.rotation == 1):
-                front = self.midpoint(Point(x1,y2),Point(x1,y1))
-                back = self.midpoint(Point(x2,y2),Point(x2,y1))
-            elif (self.rotation == 2):
-                front = self.midpoint(Point(x2,y2),Point(x1,y2))
-                back = self.midpoint(Point(x2,y1),Point(x1,y1))
-            elif (self.rotation == 3):
-                front = self.midpoint(Point(x2,y1),Point(x2,y2))
-                back = self.midpoint(Point(x1,y1),Point(x1,y2))
+            if self.rotation == 0:
+                front = self.midpoint(Point(x1, y1), Point(x2, y1))
+                back = self.midpoint(Point(x1, y2), Point(x2, y2))
+            elif self.rotation == 1:
+                front = self.midpoint(Point(x1, y2), Point(x1, y1))
+                back = self.midpoint(Point(x2, y2), Point(x2, y1))
+            elif self.rotation == 2:
+                front = self.midpoint(Point(x2, y2), Point(x1, y2))
+                back = self.midpoint(Point(x2, y1), Point(x1, y1))
+            elif self.rotation == 3:
+                front = self.midpoint(Point(x2, y1), Point(x2, y2))
+                back = self.midpoint(Point(x1, y1), Point(x1, y2))
             all_objects_front_center_points.append(front)
             all_objects_back_center_points.append(back)
-#         all_objects_front_points.append(front)
-        walls = []
+        #         all_objects_front_points.append(front)
+        walls: list[tuple[tuple[int, int], tuple[int, int]]] = []
         walls.append(((0, 0), (100, 0)))
         walls.append(((100, 0), (100, 100)))
         walls.append(((100, 100), (0, 100)))
         walls.append(((0, 100), (0, 0)))
 
+        wallProbVec = np.array([0.2, 0.2, 0.4, 0.6, 0.2, 0.6])
+        #         dR = 600
 
-        wallProbVec = np.array([0.2, 0.2, 0.4, 0.6,0.2,0.6])
-#         dR = 600
+        return self.calcAlignment(
+            all_objects_back_center_points, walls, wallProbVec, dR_room
+        )
 
-        return (self.calcAlignment(all_objects_back_center_points,walls,wallProbVec,dR_room))
-
-    def calcLayoutClearance(self , objList, layoutPoly= None, entList = None):
+    def calcLayoutClearance(
+        self, objList: list[list[spt.Point]], layoutPoly=None, entList=None
+    ):
         """
-        calculating layout polygons mean overlap 
+        calculating layout polygons mean overlap
         objList - List of obstacle objects (polygons)
            Each object is assumed to represent the EXTENDED-bounding-box, i.e., including the extra gap
-            required around the object 
+            required around the object
         layoutPoly - Nx2 list of ordered vertices defining a 2D polygon of N vertices - room polygon layout
            last point NEQ first point
         entList - List of entrance line segments (2D points). Entrances should not be occluded
@@ -660,12 +753,12 @@ class baseParent:
         #
 
         nObj = len(objList)
-        objListSp = []
+        objListSp: list[sgp.Polygon] = []
         # Transform to shapely
         for n in range(nObj):
             objListSp.append(sgp.Polygon([[p.x, p.y] for p in objList[n]]))
 
-        ovlpSum = 0
+        ovlpSum: float = 0
         for m in range(nObj - 1):
             for n in range(nObj):
                 if m == n:
@@ -675,22 +768,27 @@ class baseParent:
 
         ovlpSum = ovlpSum / (nObj * (nObj - 1))
 
-            # ==> entrance overlap
-            # if entLine.touches(tmpPolyLayout) or entLine.intersects(tmpPolyLayout):
-            #    ovlp = entLine.intersection(tmpPolyLayout).length / entLine.length
+        # ==> entrance overlap
+        # if entLine.touches(tmpPolyLayout) or entLine.intersects(tmpPolyLayout):
+        #    ovlp = entLine.intersection(tmpPolyLayout).length / entLine.length
 
         return ovlpSum
 
-    def findPathPoly(self ,sourceP, targetP, objList, layoutPoly):
-
+    def findPathPoly(
+        self,
+        sourceP: list[spt.Point],
+        targetP: list[spt.Point],
+        objList: list[list[spt.Point]],
+        layoutPoly,
+    ):
         """
         calculating shortest path from sourceP point to targetP that avoid polygon shape obstacles
         sourceP/targetP - 2D points
-        objList - List of obstacle objects (polygons, each is a list of 2D points). 
+        objList - List of obstacle objects (polygons, each is a list of 2D points).
                     Should Contains the object's polygon and forward facing edge ???
         layoutPoly - Nx2 list of ordered vertices defining a 2D polygon of N vertices - room polygon layout
                     last point NEQ first point
-        =>>>>>>> Assuming polygons DO NOT intersect  
+        =>>>>>>> Assuming polygons DO NOT intersect
         """
 
         nObj = len(objList)
@@ -699,7 +797,7 @@ class baseParent:
         for n in range(nObj):
             tmpPoly = []
             for p in objList[n]:
-                tmpPoly.append(pvg.Point(p.x,p.y))
+                tmpPoly.append(pvg.Point(p.x, p.y))
             objListVg.append(tmpPoly)
 
         # Start building the visibility graph
@@ -707,7 +805,7 @@ class baseParent:
         refPoint = pvg.Point(sourceP[0].x, sourceP[0].y)
         workers = 1
         graph.build_mod(objListVg, workers, None, refPoint)  # , workers=workers)
-#         graph.build(objListVg) #, workers=workers)
+        #         graph.build(objListVg) #, workers=workers)
 
         # Get the shortest path
         shortest_path = []
@@ -723,64 +821,81 @@ class baseParent:
             pdistance = 0
             prev_point = spath[0]
             for point in spath[1:]:
-                pdistance += np.sqrt((prev_point.y - point.y) ** 2 + (prev_point.x - point.x) ** 2)
+                pdistance += np.sqrt(
+                    (prev_point.y - point.y) ** 2 + (prev_point.x - point.x) ** 2
+                )
                 prev_point = point
 
             shortest_path.append(spath)
             path_distance.append(pdistance)
-            dDist = np.sqrt((targetP[n].x - sourceP[n].x) ** 2 + (targetP[n].y - sourceP[n].y) ** 2)
+            dDist = np.sqrt(
+                (targetP[n].x - sourceP[n].x) ** 2 + (targetP[n].y - sourceP[n].y) ** 2
+            )
             direct_distance.append(dDist)
         # print('Shortest path distance: {}'.format(path_distance))
 
         return shortest_path, path_distance, direct_distance
 
-    def calcLayoutCirculation(self ,objList, srcList, tgtList):
-
+    def calcLayoutCirculation(
+        self,
+        objList: list[list[spt.Point]],
+        srcList: list[spt.Point],
+        tgtList: list[spt.Point],
+    ):
         """
-        calculating layout polygons accessibility from entrance (could be more than one entrance)  
+        calculating layout polygons accessibility from entrance (could be more than one entrance)
         objList - List of obstacle objects (polygons)
                     Each object is assumed to represent the EXTENDED-bounding-box, i.e., including the
                     extra gap
-                    required around the object 
+                    required around the object
         src/tgt-List - pairs of points between which shortest path is calculated and compared to straight
-        path 
+        path
         """
-#         print(objList)
-#         print(srcList)
+        #         print(objList)
+        #         print(srcList)
         nPairs = len(srcList)
         pathRatioSum = 0
 
         sPath, lenPath, dirPath = self.findPathPoly(srcList, tgtList, objList, [])
 
         for n in range(nPairs):
-            pathRatioSum += (1 - dirPath[n] / lenPath[n])
+            pathRatioSum += 1 - dirPath[n] / lenPath[n]
 
         return pathRatioSum
 
-    def calcGroupRelation(self ,objPos, membershipVec, dR):
-
+    def calcGroupRelation(
+        self, objPos: list[spt.Point], membershipVec: list[int], dR: float
+    ):
         """
-        calculating object inter-group-relations: spread of objects from a group relative to space diagonal  
+        calculating object inter-group-relations: spread of objects from a group relative to space diagonal
         objPos - vector of objects' center (numpy array)
         membershipVec - vector of objects' membership association (integers)
-        dR - space diagonal (scalar) 
+        dR - space diagonal (scalar)
         """
 
-        gSum = 0
+        gSum: float = 0
         nObj = len(objPos)
 
         for i in range(nObj - 1):
             for j in range(i + 1, nObj):
-                gSum += 1.0 * (not (membershipVec[i] - membershipVec[j])) * npla.norm(np.array(objPos[i]) - np.array(objPos[j]))
+                gSum += (
+                    1.0
+                    * (not (membershipVec[i] - membershipVec[j]))
+                    * float(
+                        npla.norm(
+                            np.array(objPos[i].xy).flatten()
+                            - np.array(objPos[j].xy).flatten()
+                        )
+                    )
+                )
 
-        gSum /= ((nObj - 1) * nObj / 2 * dR)
+        gSum /= (nObj - 1) * nObj / 2 * dR
 
         return gSum
 
-    def calcObjDistrib(self ,objPos):
-
+    def calcObjDistrib(self, objPos: list[spt.Point]):
         """
-        calculating object distribution in space, also referred to as Rhythm 
+        calculating object distribution in space, also referred to as Rhythm
         """
 
         nObj = len(objPos)
@@ -789,14 +904,19 @@ class baseParent:
         dP = np.array([])
         for i in range(nObj - 1):
             for j in range(i + 1, nObj):
-                dP = np.append(dP, npla.norm(np.array(objPos[i]) 
-                                             - np.array(objPos[j])))
+                dP = np.append(
+                    dP,
+                    npla.norm(
+                        np.array(objPos[i].xy).flatten()
+                        - np.array(objPos[j].xy).flatten()
+                    ),
+                )
 
         dMx = np.max(dP)
         dP /= dMx
         dPmean = np.median(dP)
 
-        dSum = 0
+        dSum = 0.0
         for n in range(len(dP)):
             dSum += (dP[n] - dPmean) ** 2
         dSum /= len(dP)  # ((nObj-1)*nObj/2)
@@ -805,12 +925,14 @@ class baseParent:
 
         return dSum
 
-    def calcFunctionality(self,impVec, objCatNum, catDesNum):
+    def calcFunctionality(
+        self, impVec: list[int], objCatNum: dict[str, int], catDesNum: dict[str, int]
+    ):
         """
-        calculating objects functionality importance and quantity 
+        calculating objects functionality importance and quantity
          impVec - vector of importance values
          objCatNum - amount of objects from each category in the layout (dict)
-         catDesNum - desired amount of objects from each category (dict)  
+         catDesNum - desired amount of objects from each category (dict)
 
          #CALLING
          actual_amounts = {'Table':2,'Chair':2,'Bed':2}
@@ -821,18 +943,20 @@ class baseParent:
 
         nO = len(impVec)
 
-        fSum1 = np.sum(1-impVec)
+        fSum1 = np.sum(1 - np.array(impVec))
         fSum1 /= nO
 
-        fSum2 = 0
+        fSum2 = 0.0
         for oc in objCatNum.keys():
             fSum2 += abs(objCatNum[oc] - catDesNum[oc])
-        fSum2 /= (1.0 * len(objCatNum))
+        fSum2 /= 1.0 * len(objCatNum)
 
         fSum = 0.5 * (fSum1 + fSum2)
         return fSum
 
-    def calcProportion(self ,objList, roomPoints, desRatio = 0.45):
+    def calcProportion(
+        self, objList: list[list[spt.Point]], roomPoints: list[spt.Point], desRatio=0.45
+    ):
         """
 
         Till now on the basis of area not volume
@@ -843,7 +967,7 @@ class baseParent:
         """
 
         nObj = len(objList)
-        objListSp = []
+        objListSp: list[sgp.Polygon] = []
         # Transform to shapely
         for n in range(nObj):
             objListSp.append(sgp.Polygon([[p.x, p.y] for p in objList[n]]))
@@ -858,11 +982,13 @@ class baseParent:
         gP = max(desRatio - 1.0 * objVolSum / roomVol, 0) / (1.0 * desRatio)
         return gP
 
-    def calcGoldenSec(self,objPos, roomRect, dR):
+    def calcGoldenSec(
+        self, objPos: list[spt.Point], roomRect: list[spt.Point], dR: float
+    ):
         """
         calculating objects location w.r.t. golden section lines
          objPos: objects' center position
-         roomRect: 4 points of room (or sub-area) rectangle  
+         roomRect: 4 points of room (or sub-area) rectangle
          dR: room diagonal
         """
 
@@ -893,7 +1019,7 @@ class baseParent:
         pt42 = line4.interpolate(length * (1.0 - gsr))
         pt41 = line4.interpolate(length * gsr)
 
-        gsLines = []
+        gsLines: list[sgls.LineString] = []
         gsLines.append(sgls.LineString((pt11, pt31)))
         gsLines.append(sgls.LineString((pt12, pt32)))
         gsLines.append(sgls.LineString((pt21, pt41)))
@@ -907,17 +1033,23 @@ class baseParent:
             dObjGs.append(min(dd))
 
         gP = np.sum(dObjGs)
-        gP /= (1.0 * dR * len(objPos))
+        gP /= 1.0 * dR * len(objPos)
 
         return gP
 
-    def calcAlignment(self,backPos, walls, wallProbVec, dR):
+    def calcAlignment(
+        self,
+        backPos: list[list[float]],
+        walls: list[tuple[tuple[int, int], tuple[int, int]]],
+        wallProbVec: np.ndarray,
+        dR: float,
+    ):
         """
-        calculating object alignment, currently only w.r.t. supporting wall  
-        backPos - vector of objects' back position (numpy array)
-        walls - list of walls, each represented as a line (end points) 
+        calculating object alignment, currently only w.r.t. supporting wall
+        backPos - vector of objects' back position (numpy array) (LIST OF LISTS THAT SHOULD BE TUPLES)
+        walls - list of walls, each represented as a line (end points)
         wallProbVec - probability vector of objects' to stand against the wall
-        dR - space diagonal (scalar) 
+        dR - space diagonal (scalar)
         """
 
         #
@@ -926,11 +1058,11 @@ class baseParent:
 
         nW = len(walls)
         nO = len(backPos)
-        wLines = []
+        wLines: list[sgls.LineString] = []
         for iW in range(nW):
             wLines.append(sgls.LineString((walls[iW][0], walls[iW][1])))
 
-        wSum = 0
+        wSum = 0.0
         for iO in range(nO):
             dP = np.array([])
             for iW in range(nW):
@@ -938,18 +1070,22 @@ class baseParent:
                 dP = np.append(dP, wLines[iW].distance(spt.Point(backPos[iO])))
             wSum += wallProbVec[iO] * min(dP)
 
-        wSum /= (nO * dR)
-        return wSum        
-    
-    
-        
-        
-        
-class Room(baseParent):
+        wSum /= nO * dR
+        return wSum
 
+
+class Room(baseParent):
     """Class describing room attributes"""
-    def __init__(self, bottom_left, top_right, name,object_importance,doors=None
-                 , windows=None ):
+
+    def __init__(
+        self,
+        bottom_left: Point,
+        top_right: Point,
+        name: str,
+        object_importance: list[int],
+        doors=None,
+        windows=None,
+    ):
         self.bottom_left = bottom_left
         self.top_right = top_right
         self.name = name
@@ -958,7 +1094,6 @@ class Room(baseParent):
         self.object_importance = object_importance
         self.rotation = 0
         self.redAreas = []
-
 
     def get_new_point(self):
         """Description:
@@ -971,9 +1106,11 @@ class Room(baseParent):
         None
 
         """
-        return Point(random.randint(0, self.top_right.x), random.randint(0, self.top_right.y))
+        return Point(
+            random.randint(0, self.top_right.x), random.randint(0, self.top_right.y)
+        )
 
-    def rotate(self, idx):
+    def rotate(self, idx: int):
         """Rotation around the axis which takes an index and rotates object on that index"""
 
         """Description:
@@ -989,19 +1126,24 @@ class Room(baseParent):
         """
         centr_point = self.center(idx)
 
-        center_point_x = self.redAreas[idx]["furniture"].top_right.x/2
-        center_point_y = self.redAreas[idx]["furniture"].top_right.y/2
+        center_point_x = self.redAreas[idx]["furniture"].top_right.x / 2
+        center_point_y = self.redAreas[idx]["furniture"].top_right.y / 2
 
         new_point_x = centr_point.x - center_point_y
         new_point_y = centr_point.y - center_point_x
 
         temp = Point(new_point_x, new_point_y)
-        if (self.can_fit(temp, self.redAreas[idx]["furniture"], idx)):
+        if self.can_fit(temp, self.redAreas[idx]["furniture"], idx):
             self.redAreas[idx]["point"].x = new_point_x
             self.redAreas[idx]["point"].y = new_point_y
 
-            self.redAreas[idx]["furniture"].top_right.x, self.redAreas[idx]["furniture"].top_right.y = self.redAreas[
-                idx]["furniture"].top_right.y, self.redAreas[idx]["furniture"].top_right.x
+            (
+                self.redAreas[idx]["furniture"].top_right.x,
+                self.redAreas[idx]["furniture"].top_right.y,
+            ) = (
+                self.redAreas[idx]["furniture"].top_right.y,
+                self.redAreas[idx]["furniture"].top_right.x,
+            )
 
             self.rotation = (self.rotation + 1) % 4
             return True
@@ -1009,7 +1151,7 @@ class Room(baseParent):
         else:
             return False
 
-    def move(self, itemx, direction):
+    def move(self, itemx: Furniture, direction: int):
         """Description:
         Snap the Furniture object to the closest object
 
@@ -1023,42 +1165,48 @@ class Room(baseParent):
 
         """
 
-        all_objects_having_back = ['Chair']
-
         count = 0
         for item in self.redAreas:
 
-            count +=1
+            count += 1
             if item["furniture"] is itemx:
 
                 can_snap = True
                 if item["furniture"].additional_attr:
-                    if 'back' in item["furniture"].additional_attr['snap_direct']:
-                        if not((self.rotation + direction)%4  == 2):
+                    if "back" in item["furniture"].additional_attr["snap_direct"]:
+                        if not ((self.rotation + direction) % 4 == 2):
                             can_snap = False
 
                             return False
 
                 if direction == 1 and can_snap:
-                    if self.can_fit(Point(self.top_right.x - item["point"].x - 1, item["point"].y), item["furniture"], item["id"]):
-                        item["point"].x = self.top_right.x - item["point"].x-1
+                    if self.can_fit(
+                        Point(self.top_right.x - item["point"].x - 1, item["point"].y),
+                        item["furniture"],
+                        item["id"],
+                    ):
+                        item["point"].x = self.top_right.x - item["point"].x - 1
 
                         return True
                     else:
 
                         return False
                 elif direction == 2 and can_snap:
-                    if self.can_fit(Point(item["point"].x, self.top_right.y - item["point"].y - 1), item["furniture"], item["id"]):
-                        item["point"].y = self.top_right.y - \
-                            item["point"].y - 1
+                    if self.can_fit(
+                        Point(item["point"].x, self.top_right.y - item["point"].y - 1),
+                        item["furniture"],
+                        item["id"],
+                    ):
+                        item["point"].y = self.top_right.y - item["point"].y - 1
 
                         return True
                     else:
-
                         return False
                     return True
                 elif direction == 3 and can_snap:
-                    if self.can_fit(Point(1, item["point"].y), item["furniture"], item["id"]):
+                    if self.can_fit(
+                        Point(1, item["point"].y), item["furniture"], item["id"]
+                    ):
                         item["point"].x = 1
 
                         return True
@@ -1067,7 +1215,9 @@ class Room(baseParent):
                         return False
 
                 elif direction == 4 and can_snap:
-                    if self.can_fit(Point(item["point"].x, 1), item["furniture"], item["id"]):
+                    if self.can_fit(
+                        Point(item["point"].x, 1), item["furniture"], item["id"]
+                    ):
                         item["point"].y = 1
 
                         return True
@@ -1078,45 +1228,54 @@ class Room(baseParent):
     def squeeze(self):
 
         for count in range(len(self.redAreas)):
-            self.move_object(self.redAreas[count]['furniture'], (count,0))
+            self.move_object(self.redAreas[count]["furniture"], (count, 0))
 
     def spread(self):
 
         for count in range(len(self.redAreas)):
-            self.align(self.redAreas[count]['furniture'],"wall")
-            self.snap(self.redAreas[count]['furniture'],"wall")
-    def get_line_equation(self ,start, end):
-    
-        points = [start,end]
+            self.align(self.redAreas[count]["furniture"], "wall")
+            self.snap(self.redAreas[count]["furniture"], "wall")
+
+    def get_line_equation(self, start, end):
+
+        points = [start, end]
         x_coords, y_coords = zip(*points)
-        A = vstack([x_coords,ones(len(x_coords))]).T
+        A = vstack([x_coords, ones(len(x_coords))]).T
         m, c = lstsq(A, y_coords)[0]
-        
-        return m , c
-        print("Line Solution is y = {m}x + {c}".format(m=m,c=c))
-    
-    def blocker(self , src_point , target_point):
-        
-        m , c = self.get_line_equation(src_point , target_point)
-        
-        point_x = random.randint(src_point[0] , target_point[0])
-        
-        point_y = m*(point_x) + c
-        
-        self.redAreas[0]["point"].x , self.redAreas[0]["point"].y= point_x , point_y
+
+        return m, c
+        print("Line Solution is y = {m}x + {c}".format(m=m, c=c))
+
+    def blocker(self, src_point, target_point):
+
+        m, c = self.get_line_equation(src_point, target_point)
+
+        point_x = random.randint(src_point[0], target_point[0])
+
+        point_y = m * (point_x) + c
+
+        self.redAreas[0]["point"].x, self.redAreas[0]["point"].y = point_x, point_y
 
 
-
-class Furniture():
+class Furniture:
     """Class describing Furniture attributes
 
-        Parameters:
-        bottom_left = starting point of furniture object
-        top_right = Top right corner points of furniture object
-        name = Name of furniture object
-        room_type = Table:1 | Chair:2 | Bed:3 """
+    Parameters:
+    bottom_left = starting point of furniture object
+    top_right = Top right corner points of furniture object
+    name = Name of furniture object
+    room_type = Table:1 | Chair:2 | Bed:3"""
 
-    def __init__(self, bottom_left, top_right, name,room_type,parent=None, childs=None, additional_attr=None):
+    def __init__(
+        self,
+        bottom_left: Point,
+        top_right: Point,
+        name: str,
+        room_type: int,
+        parent: Furniture | None = None,
+        childs: list[Furniture] | None = None,
+        additional_attr=None,
+    ):
         self.bottom_left = bottom_left
         self.top_right = top_right
         self.name = name
@@ -1124,4 +1283,21 @@ class Furniture():
         self.childs = childs
         self.room_type = room_type
         self.additional_attr = additional_attr
-        self.redAreas = []
+        self.redAreas: list[ObjectListObject] = []
+
+
+class Rectangle:
+    """Class for implementation of all attributes of a rectangle"""
+
+    def __init__(self, bottom_left: Point, top_right: Point):
+        self.bottom_left = bottom_left
+        self.top_right = top_right
+
+    def intersects(self, other: Rectangle):
+        """Checks if two Rectangle objects insects or overlaps"""
+        return not (
+            self.top_right.x < other.bottom_left.x
+            or self.bottom_left.x > other.top_right.x
+            or self.top_right.y < other.bottom_left.y
+            or self.bottom_left.y > other.top_right.y
+        )
