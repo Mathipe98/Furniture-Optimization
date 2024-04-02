@@ -1,13 +1,15 @@
 import math
 
 import matplotlib
-import numpy as np
+import matplotlib.patches as patches
 
 # matplotlib.use("agg")
 import matplotlib.pyplot as plt
-import matplotlib.patches as patches
+import numpy as np
+
 # import pyvisgraph as pvg
 import layoutCostFunctions
+
 
 class Furniture:
     """
@@ -20,20 +22,20 @@ class Furniture:
         self.length = length
         self.width = width
         self.proportions = np.array([length, width])
-        if 'guard_array' in kwargs:
-            self.guard_array = np.array(kwargs['guard_array'])
+        if "guard_array" in kwargs:
+            self.guard_array = np.array(kwargs["guard_array"])
         else:
             self.guard_array = np.array([5, 5])
 
     def __str__(self):
-        return '%s   ' % self.name
+        return "%s   " % self.name
 
     def __repr__(self):
-        return '%s   ' % self.name
+        return "%s   " % self.name
 
 
 class GeoItems:
-    """    GeoItems is a class that consists data of a group of geographic items.
+    """GeoItems is a class that consists data of a group of geographic items.
 
     namely it contains a list of the items, its position and orientations.
     It is used to create furnitures arrangements or room areas arrangements.
@@ -67,10 +69,10 @@ class GeoItems:
         self.orientations = orientations
 
     def __str__(self):
-        return '%s' % self.items
+        return "%s" % self.items
 
     def __repr__(self):
-        return '%s' % self.items
+        return "%s" % self.items
 
     def add_item(self, item, position, orientation):
         """
@@ -85,19 +87,25 @@ class GeoItems:
         self.orientations.append(orientation)
 
     def length(self, ind):
-        """ lengths returns a vector with the object lengths"""
+        """lengths returns a vector with the object lengths"""
 
         if self.orientations[ind] == 0 or self.orientations[ind] == 180:
-            r = np.array([self.items[ind].proportions[0], self.items[ind].proportions[1]])
+            r = np.array(
+                [self.items[ind].proportions[0], self.items[ind].proportions[1]]
+            )
         else:
-            r = np.array([self.items[ind].proportions[1], self.items[ind].proportions[0]])
+            r = np.array(
+                [self.items[ind].proportions[1], self.items[ind].proportions[0]]
+            )
         return r
 
     def dist(self, ind1, ind2):
-        """ dist calculates the distance between furniture ind1 and furniture ind2 from the list The distance is from
-        the end of the furniture (and not the centers) """
+        """dist calculates the distance between furniture ind1 and furniture ind2 from the list The distance is from
+        the end of the furniture (and not the centers)"""
 
-        centers_distance = (np.array(self.positions[ind1]) - np.array(self.positions[ind2]))
+        centers_distance = np.array(self.positions[ind1]) - np.array(
+            self.positions[ind2]
+        )
         r1 = self.length(ind1)
         r2 = self.length(ind2)
         d = np.abs(centers_distance) - (r1 + r2) / 2
@@ -120,7 +128,7 @@ class GeoItems:
 
     def plot(self):
         area_fig = plt.figure()
-        ax1 = area_fig.add_subplot(111, aspect='equal')
+        ax1 = area_fig.add_subplot(111, aspect="equal")
         for i in range(len(self.items)):
             d = self.length(i)
             left_down_corner = np.array(self.positions[i]) - np.array(d / 2)
@@ -155,10 +163,10 @@ class RoomArea:
         self.furnitures = GeoItems([], [], [])
 
     def __str__(self):
-        return 'area %s room, name %s' % (self.type, self.name)
+        return "area %s room, name %s" % (self.type, self.name)
 
     def __repr__(self):
-        return 'area %s room, name %s' % (self.type, self.name)
+        return "area %s room, name %s" % (self.type, self.name)
 
 
 class Room(GeoItems):
@@ -188,7 +196,11 @@ class Room(GeoItems):
         :param indx:
         :return: orientations
         """
-        orientations = np.mod(self.orientations[indx] + np.array(self.items[indx].furnitures.orientations), 360)
+        orientations = np.mod(
+            self.orientations[indx]
+            + np.array(self.items[indx].furnitures.orientations),
+            360,
+        )
         return orientations
 
     def area_pos(self, indx):
@@ -201,8 +213,12 @@ class Room(GeoItems):
         pos_list = []
         for i in range(len(self.items[indx].furnitures.items)):
             position = self.items[indx].furnitures.positions[i]
-            d = {0: position, 90: np.array([-position[1], position[0]]), 180: -np.array(position),
-                 270: np.array([position[1], -position[0]])}
+            d = {
+                0: position,
+                90: np.array([-position[1], position[0]]),
+                180: -np.array(position),
+                270: np.array([position[1], -position[0]]),
+            }
             if not math.isnan(position[0]):
                 pos_list.append(d[orientation] + np.array(self.positions[indx]))
             else:
@@ -219,8 +235,12 @@ class Room(GeoItems):
         dim_list = []
         for i in range(len(orientation)):
             proportion = self.items[indx].furnitures.items[i].proportions
-            d = {0: proportion, 90: np.array([proportion[1], proportion[0]]), 180: proportion,
-                 270: np.array([proportion[1], proportion[0]])}
+            d = {
+                0: proportion,
+                90: np.array([proportion[1], proportion[0]]),
+                180: proportion,
+                270: np.array([proportion[1], proportion[0]]),
+            }
             if not math.isnan(orientation[i]):
                 dim_list.append(d[orientation[i]])
             else:
@@ -229,11 +249,14 @@ class Room(GeoItems):
 
     def plot(self):
         room_fig = plt.figure()
-        ax1 = room_fig.add_subplot(111, aspect='equal')
+        ax1 = room_fig.add_subplot(111, aspect="equal")
 
         # if room has room polygon
-        if hasattr(self, 'poly'):
-            plt.plot(np.vstack([self.poly, self.poly[0]])[:, 0], np.vstack([self.poly, self.poly[0]])[:, 1])
+        if hasattr(self, "poly"):
+            plt.plot(
+                np.vstack([self.poly, self.poly[0]])[:, 0],
+                np.vstack([self.poly, self.poly[0]])[:, 1],
+            )
 
         for i in range(len(self.items)):
             pos = self.area_pos(i)
@@ -241,14 +264,25 @@ class Room(GeoItems):
             orientation = self.area_orientation(i)
             poly = self.area_poly(i)
             if len(poly) == 4:
-                poly = np.vstack([poly, poly[0]])  # complete the polygon if isn't complete
+                poly = np.vstack(
+                    [poly, poly[0]]
+                )  # complete the polygon if isn't complete
             plt.plot(poly[:, 0], poly[:, 1])
 
             for j in range(len(pos)):
                 left_down_corner = np.array(pos[j]) - np.array(dims[j] / 2)
                 if type(left_down_corner) == np.ndarray:  # not nan
-                    print("position ", pos[j], 'dims', dims[j], ',orientation ', orientation[j])
-                    ax1.add_patch(patches.Rectangle(left_down_corner, dims[j][0], dims[j][1]))
+                    print(
+                        "position ",
+                        pos[j],
+                        "dims",
+                        dims[j],
+                        ",orientation ",
+                        orientation[j],
+                    )
+                    ax1.add_patch(
+                        patches.Rectangle(left_down_corner, dims[j][0], dims[j][1])
+                    )
         # plt.xlim(-1000,1000)
         # plt.ylim(-1000,1000)
         plt.draw()
@@ -267,23 +301,24 @@ class Room(GeoItems):
         if add_guard is True:
             proportions += self.items[indx].guard_array
         poly = []
-        positions = [[0, 0], [proportions[0], 0], proportions,
-                     [0, proportions[1]]]
+        positions = [[0, 0], [proportions[0], 0], proportions, [0, proportions[1]]]
         for position in positions:
-            d = {0: position, 90: np.array([-position[1], position[0]]), 180: -np.array(position),
-                 270: np.array([position[1], -position[0]])}
+            d = {
+                0: position,
+                90: np.array([-position[1], position[0]]),
+                180: -np.array(position),
+                270: np.array([position[1], -position[0]]),
+            }
             if not math.isnan(orientation):
-              poly.append(np.array(d[orientation] + np.array(self.positions[indx])))
+                poly.append(np.array(d[orientation] + np.array(self.positions[indx])))
         return np.matrix(poly)
 
-
     def area_list(self, indx):
-        """ returns the furniture lists of area #index """
+        """returns the furniture lists of area #index"""
         return self.items[indx].furnitures.items
 
-
     def __str__(self):
-        return 'room areas are: %s' % self.items
+        return "room areas are: %s" % self.items
 
 
 class FlatRoom:
@@ -302,7 +337,9 @@ class FlatRoom:
         furnitures = []
 
         for area_indx in range(len(room.items)):
-            orientations += list(room.area_orientation(area_indx))  # converting from np.array to list
+            orientations += list(
+                room.area_orientation(area_indx)
+            )  # converting from np.array to list
             positions += list(room.area_pos(area_indx))
             furnitures += list(room.area_list(area_indx))
         # print(cls)
@@ -326,30 +363,41 @@ class FlatRoom:
         if add_guard is True:
             proportions += self.furnitures[indx].guard_array
         poly = []
-        positions = [[-proportions[0] / 2, -proportions[1] / 2], [-proportions[0] / 2,  proportions[1] / 2],
-                     [ proportions[0] / 2,  proportions[1] / 2], [ proportions[0] / 2, -proportions[1] / 2]]
+        positions = [
+            [-proportions[0] / 2, -proportions[1] / 2],
+            [-proportions[0] / 2, proportions[1] / 2],
+            [proportions[0] / 2, proportions[1] / 2],
+            [proportions[0] / 2, -proportions[1] / 2],
+        ]
         for position in positions:
-            d = {0: position, 90: np.array([-position[1], position[0]]), 180: -np.array(position),
-                 270: np.array([position[1], -position[0]])}
+            d = {
+                0: position,
+                90: np.array([-position[1], position[0]]),
+                180: -np.array(position),
+                270: np.array([position[1], -position[0]]),
+            }
             if not math.isnan(orientation):
-              poly.append(np.array(d[orientation] + np.array(self.positions[indx])))
+                poly.append(np.array(d[orientation] + np.array(self.positions[indx])))
         return np.matrix(poly)
 
-    def furnitures_polygons(self, add_guard = False):
+    def furnitures_polygons(self, add_guard=False):
         """
         Returns all the room's Furnitures polygons
         :param indx:
         :return: array of area polynom
         """
-        furnitures_poly_list = [self.get_one_furniture_poly(ind, add_guard) for ind in range(len(self.furnitures))]
+        furnitures_poly_list = [
+            self.get_one_furniture_poly(ind, add_guard)
+            for ind in range(len(self.furnitures))
+        ]
         furnitures_poly = []
 
         for furn_poly in furnitures_poly_list:
-            if len (furn_poly) >= 4:
+            if len(furn_poly) >= 4:
                 poly1 = []
                 for point in furn_poly:
                     # poly1.append(pvg.Point(point[0,0], point[0,1]))
-                    poly1.append((point[0,0], point[0,1]))
+                    poly1.append((point[0, 0], point[0, 1]))
                 furnitures_poly.append(poly1)
         return furnitures_poly
 
@@ -359,48 +407,88 @@ class FlatRoom:
     def plot(self, guard=False):
         room_fig = plt.figure()
         for furn_poly in self.furnitures_polygons(guard):
-            plt.plot(np.vstack([furn_poly, furn_poly[0]])[:, 0], np.vstack([furn_poly, furn_poly[0]])[:, 1])
-        plt.plot(np.vstack([self.poly, self.poly[0]])[:, 0], np.vstack([self.poly, self.poly[0]])[:, 1])
+            plt.plot(
+                np.vstack([furn_poly, furn_poly[0]])[:, 0],
+                np.vstack([furn_poly, furn_poly[0]])[:, 1],
+            )
+        plt.plot(
+            np.vstack([self.poly, self.poly[0]])[:, 0],
+            np.vstack([self.poly, self.poly[0]])[:, 1],
+        )
         plt.draw_if_interactive()
         plt.show()
 
+
 if __name__ == "__main__":
     plt.ioff()
-    import room_designer.room_designer
-    poly = np.array(
-        [[100.0, 150.0], [200.0, 150.0], [200.0, 100.0], [400.0, 100.0], [400.0, 200.0], [750.0, 200.0], [750.0, 150.0],
-         [850.0, 150.0], [850.0, 600.0], [700.0, 600.0], [700.0, 700.0], [800.0, 700.0], [800.0, 800.0], [250.0, 800.0],
-         [250.0, 750.0],
-         [150.0, 750.0], [150.0, 800.0], [100.0, 800.0], [100.0, 600.0], [150.0, 600.0], [150.0, 250.0], [100.0, 250.0],
-         [100.0, 150.0]])
+    import pickle
 
-    room = room_designer.room_designer.arrange_living_room(poly)
+    file_obj = open("room_example.pk1", "rb")
+    saved_room = pickle.load(file_obj)
+
+    room = FlatRoom(
+        saved_room.furnitures,
+        saved_room.positions,
+        saved_room.orientations,
+        saved_room.poly,
+    )
     room.plot()
-    room_flat = FlatRoom.init_from_room_class(room)
-    print([furntiture.name for furntiture in room_flat.furnitures])
+    poly = np.array(
+        [
+            [100.0, 150.0],
+            [200.0, 150.0],
+            [200.0, 100.0],
+            [400.0, 100.0],
+            [400.0, 200.0],
+            [750.0, 200.0],
+            [750.0, 150.0],
+            [850.0, 150.0],
+            [850.0, 600.0],
+            [700.0, 600.0],
+            [700.0, 700.0],
+            [800.0, 700.0],
+            [800.0, 800.0],
+            [250.0, 800.0],
+            [250.0, 750.0],
+            [150.0, 750.0],
+            [150.0, 800.0],
+            [100.0, 800.0],
+            [100.0, 600.0],
+            [150.0, 600.0],
+            [150.0, 250.0],
+            [100.0, 250.0],
+            [100.0, 150.0],
+        ]
+    )
+
+    print([furntiture.name for furntiture in room.furnitures])
     # furnitures_poly = [room_flat.area_poly(room_flat, ind) for ind in range(len(room_flat.list))]
     # pos = [room_flat.area_pos(room_flat, ind) for ind in range(len(room_flat.list))]
 
-    polys = room_flat.furnitures_polygons(False)
+    polys = room.furnitures_polygons(False)
 
-    polys.append(room_flat.poly)
+    polys.append(room.poly)
     print(polys)
     pS = [[151.0, 280.0]]
     pT = [[800.0, 280.0]]
 
-    #plot polys
+    # plot polys
 
-    room_flat.plot()
+    room.plot()
 
     pathRatioSum2 = layoutCostFunctions.calcLayoutCirculation(polys, pS, pT)
-    print('path ratio: {:.3}'.format(pathRatioSum2))
+    print("path ratio: {:.3}".format(pathRatioSum2))
     polys.pop(6)
     polys[6] = [tuple(np.array(point) + np.array((0, 90))) for point in polys[6]]
-    clearance = layoutCostFunctions.calcLayoutClearance(polys[0:len(polys) - 1], polys[-1], pS)
-    print('clearance: {:.3}'.format(clearance))
+    clearance = layoutCostFunctions.calcLayoutClearance(
+        polys[0 : len(polys) - 1], polys[-1], pS
+    )
+    print("clearance: {:.3}".format(clearance))
 
     dR = 50
-    positions = [pos for pos in room_flat.positions if pos is not np.nan]
+    positions = [pos for pos in room.positions if pos is not np.nan]
     positions.pop(6)
-    group_relation = layoutCostFunctions.calcGroupRelation(positions, [1] * len(polys), dR)
-    print('group relation: {:.3}'.format(group_relation))
+    group_relation = layoutCostFunctions.calcGroupRelation(
+        positions, [1] * len(polys), dR
+    )
+    print("group relation: {:.3}".format(group_relation))
